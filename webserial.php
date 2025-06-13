@@ -9,6 +9,9 @@ schreibe mir eine web-app
 sie soll eine eingabe textarea mit senden button haben, direkt darüber eine textarea wo aowohl eingaben als auch ausgaben mit zeitstempel gezeigt werden, eine checkbox für autoscroll und ein button "clear" zusätzlich soll es eine js funktion geben die unter der eingabebox knöpfe hinzufügt, die onclick messages senden zB "A\n" es soll auch eine funktion geben die slider hinzufügt, man soll mindestwert, maximalwert und "delay" angeben können (damit zb nur maximal alle 100ms ein neuer wert gesendet wird) bei jedem slider soll es eine checkbox "auto update" geben und einen button "update" beim klick auf den update-button soll der wert und der name des sliders gesendet werden, zB.  "S35", wenn "auto update" enabled ist, soll es bei jeder änderung senden, aber maximal alle "delay" ms
 mach bitte auch ein entsprechendes css und erstelle keine seperaten files sondern gib alles in eine große html datei
 
+###
+füge bitte links neben dem verbinden button ein dropdown ein in dem man die baudrate wählen kann(es sollen alle sein die die arduino ide anbietet), neben 115200 und neben 9600 soll in der anzeige ein stern emoji sein, 115200 soll der standard wert sein
+
 -->
 <head>
   <meta charset="UTF-8">
@@ -36,7 +39,7 @@ mach bitte auch ein entsprechendes css und erstelle keine seperaten files sonder
     #input {
       height: 60px;
     }
-    button, input[type="checkbox"] {
+    button, select, input[type="checkbox"] {
       margin-right: 10px;
       margin-bottom: 10px;
     }
@@ -58,6 +61,24 @@ mach bitte auch ein entsprechendes css und erstelle keine seperaten files sonder
 <body>
 
   <h2>Web Serial Terminal</h2>
+  <select id="baudrate">
+    <option value="300">300</option>
+    <option value="1200">1200</option>
+    <option value="2400">2400</option>
+    <option value="4800">4800</option>
+    <option value="9600">9600 ⭐️</option>
+    <option value="14400">14400</option>
+    <option value="19200">19200</option>
+    <option value="28800">28800</option>
+    <option value="38400">38400</option>
+    <option value="57600">57600</option>
+    <option value="74880">74880</option>
+    <option value="115200" selected>115200 ⭐️</option>
+    <option value="230400">230400</option>
+    <option value="250000">250000</option>
+    <option value="500000">500000</option>
+    <option value="1000000">1000000</option>
+  </select>
   <button onclick="connectSerial()">🔌 Verbinden</button>
   <button onclick="clearLog()">🧹 Clear</button>
   <label><input type="checkbox" id="autoscroll" checked> Autoscroll</label>
@@ -83,7 +104,8 @@ mach bitte auch ein entsprechendes css und erstelle keine seperaten files sonder
     async function connectSerial() {
       try {
         port = await navigator.serial.requestPort();
-        await port.open({ baudRate: 9600 });
+        const baud = parseInt(document.getElementById("baudrate").value);
+        await port.open({ baudRate: baud });
 
         textDecoder = new TextDecoderStream();
         const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
@@ -94,7 +116,7 @@ mach bitte auch ein entsprechendes css und erstelle keine seperaten files sonder
         writer = encoder.writable.getWriter();
 
         readLoop();
-        log("🔌 Serial connected.");
+        log(`🔌 Serial connected at ${baud} Baud.`);
       } catch (e) {
         log("❌ Fehler: " + e);
       }
