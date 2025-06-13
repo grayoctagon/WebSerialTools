@@ -12,6 +12,11 @@ mach bitte auch ein entsprechendes css und erstelle keine seperaten files sonder
 ###
 füge bitte links neben dem verbinden button ein dropdown ein in dem man die baudrate wählen kann(es sollen alle sein die die arduino ide anbietet), neben 115200 und neben 9600 soll in der anzeige ein stern emoji sein, 115200 soll der standard wert sein
 
+###
+aktuell werden nachrichten vom arduino in mehrere zeilen geteilt
+um das zu vermeiden passe bitte die log funktion an, füge einen parameter "continue" hinzu, default soll dieser false sein, aber beim aufruf aus der readLoop funktion soll er true sein, wenn er true ist und die nachricht davor auch mit continue gelogged wurde, dann fange nur neue zeilen an, wo ein Zeilenumbruch (\n) vorkommt
+und mach bitte kein "value.trim()" in readLoop() das könne sonst zeilenumbrüche entfernen
+
 -->
 <head>
   <meta charset="UTF-8">
@@ -100,6 +105,8 @@ füge bitte links neben dem verbinden button ein dropdown ein in dem man die bau
   <script>
     let port, writer, reader;
     let textDecoder, readLoopActive = false;
+    let lastWasContinue = false;
+    let lineBuffer = '';
 
     async function connectSerial() {
       try {
@@ -122,10 +129,26 @@ füge bitte links neben dem verbinden button ein dropdown ein in dem man die bau
       }
     }
 
-    function log(text) {
-      const timestamp = new Date().toLocaleTimeString();
+    function log(text, cont = false) {
       const logDiv = document.getElementById("log");
-      logDiv.textContent += `[${timestamp}] ${text}\n`;
+
+      if (cont && lastWasContinue) {
+        // Splitte nur bei \n und baue aus dem Buffer
+        lineBuffer += text;
+        const parts = lineBuffer.split(/\n/);
+        lineBuffer = parts.pop(); // letzte unvollständige Zeile bleibt im Puffer
+        for (const part of parts) {
+          const timestamp = new Date().toLocaleTimeString();
+          logDiv.textContent += `[${timestamp}] ${part}\n`;
+        }
+      } else {
+        const timestamp = new Date().toLocaleTimeString();
+        logDiv.textContent += `[${timestamp}] ${text}\n`;
+        lineBuffer = ''; // reset wenn es kein fortlaufender Block ist
+      }
+
+      lastWasContinue = cont;
+
       if (document.getElementById("autoscroll").checked) {
         logDiv.scrollTop = logDiv.scrollHeight;
       }
@@ -137,7 +160,7 @@ füge bitte links neben dem verbinden button ein dropdown ein in dem man die bau
         try {
           const { value, done } = await reader.read();
           if (done) break;
-          if (value) log(value.trim());
+          if (value) log(value, true); // wichtig: continue=true
         } catch (e) {
           log("❌ Lese-Fehler: " + e);
           break;
@@ -147,6 +170,8 @@ füge bitte links neben dem verbinden button ein dropdown ein in dem man die bau
 
     function clearLog() {
       document.getElementById("log").textContent = '';
+      lineBuffer = '';
+      lastWasContinue = false;
     }
 
     async function sendMessage() {
