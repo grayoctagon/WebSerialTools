@@ -17,6 +17,10 @@ aktuell werden nachrichten vom arduino in mehrere zeilen geteilt
 um das zu vermeiden passe bitte die log funktion an, füge einen parameter "continue" hinzu, default soll dieser false sein, aber beim aufruf aus der readLoop funktion soll er true sein, wenn er true ist und die nachricht davor auch mit continue gelogged wurde, dann fange nur neue zeilen an, wo ein Zeilenumbruch (\n) vorkommt
 und mach bitte kein "value.trim()" in readLoop() das könne sonst zeilenumbrüche entfernen
 
+###
+bitte mach bei den slider-blocks und auch bei den buttons die Labels variabel, sie sollen in einem input feld definiert werden
+bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum definieren
+
 -->
 <head>
   <meta charset="UTF-8">
@@ -44,7 +48,7 @@ und mach bitte kein "value.trim()" in readLoop() das könne sonst zeilenumbrüch
     #input {
       height: 60px;
     }
-    button, select, input[type="checkbox"] {
+    button, select, input[type="checkbox"], input[type="text"], input[type="number"] {
       margin-right: 10px;
       margin-bottom: 10px;
     }
@@ -60,6 +64,9 @@ und mach bitte kein "value.trim()" in readLoop() das könne sonst zeilenumbrüch
     .slider-block label {
       display: inline-block;
       min-width: 80px;
+    }
+    .form-row {
+      margin-bottom: 10px;
     }
   </style>
 </head>
@@ -94,12 +101,22 @@ und mach bitte kein "value.trim()" in readLoop() das könne sonst zeilenumbrüch
 
   <div class="control-panel">
     <h3>Custom Buttons</h3>
+    <div class="form-row">
+      Label: <input type="text" id="buttonLabel" placeholder="Button Text" value="Send A">
+      Message: <input type="text" id="buttonMessage" placeholder="Nachricht" value="A\n">
+      <button onclick="handleAddCustomButton()">➕ Button hinzufügen</button>
+    </div>
     <div id="customButtons"></div>
-    <button onclick="addCustomButton('A\\n')">Add Button "A\n"</button>
 
     <h3>Sliders</h3>
+    <div class="form-row">
+      Label: <input type="text" id="sliderLabel" value="S">
+      Min: <input type="number" id="sliderMin" value="0">
+      Max: <input type="number" id="sliderMax" value="100">
+      Delay (ms): <input type="number" id="sliderDelay" value="200">
+      <button onclick="handleAddSlider()">➕ Slider hinzufügen</button>
+    </div>
     <div id="sliders"></div>
-    <button onclick="addSlider('S', 0, 100, 200)">Add Slider "S"</button>
   </div>
 
   <script>
@@ -186,20 +203,34 @@ und mach bitte kein "value.trim()" in readLoop() das könne sonst zeilenumbrüch
       log("Gesendet: " + msg.replace(/\n/g, "\\n"));
     }
 
-    function addCustomButton(text) {
+    function handleAddCustomButton() {
+      const label = document.getElementById("buttonLabel").value || "Send";
+      const message = document.getElementById("buttonMessage").value || "";
+      addCustomButton(label, message);
+    }
+
+    function addCustomButton(label, message) {
       const div = document.createElement("div");
       const btn = document.createElement("button");
-      btn.textContent = `Send "${text.replace("\\n", "\\n")}"`;
+      btn.textContent = label;
       btn.onclick = () => {
         if (writer) {
-          writer.write(text.replace("\\n", "\n"));
-          log("Gesendet: " + text);
+          writer.write(message.replace(/\\n/g, "\n"));
+          log("Gesendet: " + message);
         } else {
           log("⚠️ Kein Writer verbunden.");
         }
       };
       div.appendChild(btn);
       document.getElementById("customButtons").appendChild(div);
+    }
+
+    function handleAddSlider() {
+      const name = document.getElementById("sliderLabel").value || "S";
+      const min = parseInt(document.getElementById("sliderMin").value) || 0;
+      const max = parseInt(document.getElementById("sliderMax").value) || 100;
+      const delay = parseInt(document.getElementById("sliderDelay").value) || 200;
+      addSlider(name, min, max, delay);
     }
 
     function addSlider(name, min, max, delayMs) {
@@ -220,7 +251,6 @@ und mach bitte kein "value.trim()" in readLoop() das könne sonst zeilenumbrüch
 
       const autoCheck = document.createElement("input");
       autoCheck.type = "checkbox";
-      autoCheck.id = "auto_" + name;
 
       const updateBtn = document.createElement("button");
       updateBtn.textContent = "Update";
