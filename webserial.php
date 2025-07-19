@@ -366,6 +366,7 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
         if (s) {
           s.value = parseInt(input.value);
           s.auto = autoCheck.checked;
+          cofigToTextarea();
         }
       }
 
