@@ -66,7 +66,11 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
     }
     .slider-block label {
       display: inline-block;
-      min-width: 80px;
+      min-width: 120px;
+    }
+    .sliderValueSpan{
+      min-width: 40px;
+      display: inline-block;
     }
     .form-row {
       margin-bottom: 10px;
@@ -77,7 +81,7 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
       display: inline-block;
     }
     .sliderEl {
-      width: 1080px;
+      width: 1000px;
     }
   </style>
 </head>
@@ -311,50 +315,63 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
       addSlider(name, min, max, delay);
     }
 
-    function addSlider(name, min, max, delayMs, addToConfig=true) {
-      if(addToConfig)
-      myConfig.sliders.push(
-        {
-          name:name,
-          min:min,
-          max:max,
-          delayMs:delayMs,
-        }
-      );
-      cofigToTextarea();
+    function addSlider(name, min, max, delayMs, addToConfig = true, currentValue = min, autoUpdate = false) {
+      if (addToConfig) {
+        myConfig.sliders.push({
+          name: name,
+          min: min,
+          max: max,
+          delayMs: delayMs,
+          value: currentValue,
+          auto: autoUpdate
+        });
+        cofigToTextarea();
+      }
+
       const container = document.createElement("div");
       container.className = "slider-block";
 
       const label = document.createElement("label");
       label.textContent = name;
 
+      const valueSpan = document.createElement("span");
+      valueSpan.textContent = currentValue;
+      valueSpan.classList.add("sliderValueSpan");
+
       const input = document.createElement("input");
       input.type = "range";
       input.min = min;
       input.max = max;
-      input.value = min;
+      input.value = currentValue;
       input.classList.add("sliderEl");
-
-      const valueSpan = document.createElement("span");
-      valueSpan.textContent = input.value;
 
       const autoCheck = document.createElement("input");
       autoCheck.type = "checkbox";
+      autoCheck.checked = autoUpdate;
 
       const updateBtn = document.createElement("button");
       updateBtn.textContent = "Update";
 
       container.appendChild(label);
-      container.appendChild(input);
       container.appendChild(valueSpan);
+      container.appendChild(input);
       container.appendChild(document.createTextNode(" Auto-Update "));
       container.appendChild(autoCheck);
       container.appendChild(updateBtn);
 
       let lastSent = 0;
 
+      function updateSliderStateInConfig() {
+        let s = myConfig.sliders.find(sl => sl.name === name);
+        if (s) {
+          s.value = parseInt(input.value);
+          s.auto = autoCheck.checked;
+        }
+      }
+
       input.addEventListener("input", () => {
         valueSpan.textContent = input.value;
+        updateSliderStateInConfig();
         if (autoCheck.checked) {
           const now = Date.now();
           if (now - lastSent >= delayMs) {
@@ -371,6 +388,8 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
         lastSent = Date.now();
       };
 
+      autoCheck.addEventListener("change", updateSliderStateInConfig);
+
       // 🔁 Wheel scroll: +1 or -1
       input.addEventListener("wheel", (e) => {
         e.preventDefault(); // prevent page scroll
@@ -382,7 +401,7 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
         newValue = Math.min(Math.max(newValue, parseInt(input.min)), parseInt(input.max));
         input.value = newValue;
         valueSpan.textContent = newValue;
-
+        updateSliderStateInConfig();
         if (autoCheck.checked) {
           const now = Date.now();
           if (now - lastSent >= delayMs) {
@@ -458,7 +477,7 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
           let sliders=document.getElementById("sliders");
           sliders.innerHTML="";
           myConfig.sliders.forEach(e=>{
-            addSlider(e.name, e.min, e.max, e.delayMs, false);
+            addSlider(e.name, e.min, e.max, e.delayMs, false, e.value ?? e.min, e.auto ?? false);
           });
         } catch (error) {
           console.error(error);
