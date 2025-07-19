@@ -371,6 +371,27 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
         lastSent = Date.now();
       };
 
+      // 🔁 Wheel scroll: +1 or -1
+      input.addEventListener("wheel", (e) => {
+        e.preventDefault(); // prevent page scroll
+
+        const step = e.deltaY < 0 ? 1 : -1;
+        let newValue = parseInt(input.value) + step;
+
+        // Clamp value between min and max
+        newValue = Math.min(Math.max(newValue, parseInt(input.min)), parseInt(input.max));
+        input.value = newValue;
+        valueSpan.textContent = newValue;
+
+        if (autoCheck.checked) {
+          const now = Date.now();
+          if (now - lastSent >= delayMs) {
+            sendSliderValue(name, newValue);
+            lastSent = now;
+          }
+        }
+      });
+
       document.getElementById("sliders").appendChild(container);
     }
 
