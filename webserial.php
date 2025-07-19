@@ -92,6 +92,7 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
     <option value="1000000">1000000</option>
   </select>
   <button onclick="connectSerial()">🔌 Verbinden</button>
+  <button onclick="disconnecSerial()">✂️ Trennen</button>
   <button onclick="clearLog()">🧹 Clear</button>
   <label><input type="checkbox" id="autoscroll" checked> Autoscroll</label>
   <br>
@@ -124,6 +125,8 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
     let textDecoder, readLoopActive = false;
     let lastWasContinue = false;
     let lineBuffer = '';
+    let readableStreamClosed, writableStreamClosed;
+
 
     async function connectSerial() {
       try {
@@ -132,17 +135,63 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
         await port.open({ baudRate: baud });
 
         textDecoder = new TextDecoderStream();
-        const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+        readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
         reader = textDecoder.readable.getReader();
 
         const encoder = new TextEncoderStream();
-        const writableStreamClosed = encoder.readable.pipeTo(port.writable);
+        writableStreamClosed = encoder.readable.pipeTo(port.writable);
         writer = encoder.writable.getWriter();
 
         readLoop();
         log(`🔌 Serial connected at ${baud} Baud.`);
       } catch (e) {
         log("❌ Fehler: " + e);
+      }
+    }
+    
+    async function disconnecSerial() {
+      try {
+        readLoopActive = false;
+
+        if (reader) {
+          try {
+            await reader.cancel();
+          } catch (e) {
+            log("⚠️ Fehler beim Abbrechen des Lesens: " + e);
+          }
+          reader.releaseLock();
+          reader = null;
+        }
+
+        if (writer) {
+          try {
+            await writer.close();
+          } catch (e) {
+            log("⚠️ Fehler beim Schließen des Writers: " + e);
+          }
+          writer.releaseLock();
+          writer = null;
+        }
+
+        // Jetzt WARTEN auf das Beenden der Streams
+        if (readableStreamClosed) {
+          await readableStreamClosed.catch(() => { });
+          readableStreamClosed = null;
+        }
+
+        if (writableStreamClosed) {
+          await writableStreamClosed.catch(() => { });
+          writableStreamClosed = null;
+        }
+
+        if (port) {
+          await port.close();
+          port = null;
+        }
+
+        log("✂️ Verbindung getrennt.");
+      } catch (e) {
+        log("❌ Fehler beim Trennen: " + e);
       }
     }
 
