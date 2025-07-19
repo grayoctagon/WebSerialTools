@@ -38,6 +38,9 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
       font-family: monospace;
       margin-bottom: 10px;
     }
+    #configTA {
+      height: 360px;
+    }
     #log {
       height: 200px;
       background: #111;
@@ -68,6 +71,14 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
     .form-row {
       margin-bottom: 10px;
     }
+    .showArea {
+      border: 1px solid red;
+      padding: 5px;
+      display: inline-block;
+    }
+    .sliderEl {
+      width: 1080px;
+    }
   </style>
 </head>
 <body>
@@ -97,7 +108,7 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
   <label><input type="checkbox" id="autoscroll" checked> Autoscroll</label>
   <br>
   <div id="log" readonly></div>
-  <textarea id="input" placeholder="Nachricht eingeben..."></textarea>
+  <textarea id="inputTA" placeholder="Nachricht eingeben..."></textarea>
   <button onclick="sendMessage()">📤 Senden</button>
 
   <div class="control-panel">
@@ -107,17 +118,23 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
       Message: <input type="text" id="buttonMessage" placeholder="Nachricht" value="A\n">
       <button onclick="handleAddCustomButton()">➕ Button hinzufügen</button>
     </div>
-    <div id="customButtons"></div>
+    <div id="customButtons" class="showArea"></div>
 
     <h3>Sliders</h3>
     <div class="form-row">
       Label: <input type="text" id="sliderLabel" value="S">
-      Min: <input type="number" id="sliderMin" value="0">
+      Min: <input type="number" id="sliderMin" value="1">
       Max: <input type="number" id="sliderMax" value="100">
       Delay (ms): <input type="number" id="sliderDelay" value="200">
       <button onclick="handleAddSlider()">➕ Slider hinzufügen</button>
     </div>
-    <div id="sliders"></div>
+    <div id="sliders" class="showArea"></div>
+  </div>
+  <div class="control-panel">
+    <h3>config:</h3>
+    <textarea id="configTA" placeholder=""></textarea>
+    <button onclick="configApplyTextarea()">⚙️apply</button>
+    <button onclick="configSave()">💾save</button>
   </div>
 
   <script>
@@ -126,7 +143,11 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
     let lastWasContinue = false;
     let lineBuffer = '';
     let readableStreamClosed, writableStreamClosed;
-
+    let myConfig={
+      "buttons":[],
+      "sliders":[],
+    };
+    storageToConfig();
 
     async function connectSerial() {
       try {
@@ -241,7 +262,7 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
     }
 
     async function sendMessage() {
-      const input = document.getElementById("input");
+      const input = document.getElementById("inputTA");
       const msg = input.value;
       input.value = '';
       if (!writer) {
@@ -258,7 +279,15 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
       addCustomButton(label, message);
     }
 
-    function addCustomButton(label, message) {
+    function addCustomButton(label, message, addToConfig=true) {
+      if(addToConfig)
+      myConfig.buttons.push(
+        {
+          label:label,
+          message:message,
+        }
+      );
+      cofigToTextarea();
       const div = document.createElement("div");
       const btn = document.createElement("button");
       btn.textContent = label;
@@ -282,7 +311,17 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
       addSlider(name, min, max, delay);
     }
 
-    function addSlider(name, min, max, delayMs) {
+    function addSlider(name, min, max, delayMs, addToConfig=true) {
+      if(addToConfig)
+      myConfig.sliders.push(
+        {
+          name:name,
+          min:min,
+          max:max,
+          delayMs:delayMs,
+        }
+      );
+      cofigToTextarea();
       const container = document.createElement("div");
       container.className = "slider-block";
 
@@ -294,6 +333,7 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
       input.min = min;
       input.max = max;
       input.value = min;
+      input.classList.add("sliderEl");
 
       const valueSpan = document.createElement("span");
       valueSpan.textContent = input.value;
@@ -320,6 +360,8 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
           if (now - lastSent >= delayMs) {
             sendSliderValue(name, input.value);
             lastSent = now;
+          }else{
+            //todo: hold value and send once delay is over, when it was the last before stopped, otherwise the last movemend may get lost on fast movements
           }
         }
       });
@@ -333,6 +375,7 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
     }
 
     function sendSliderValue(name, value) {
+      console.log("sendSliderValue",value);
       const msg = `${name}${value}`;
       if (writer) {
         writer.write(msg + "\n");
@@ -340,6 +383,65 @@ bitte füge bei den slider-block auch inputs hinzu die das minimum und maximum d
       } else {
         log("⚠️ Kein Writer verbunden.");
       }
+    }
+    
+    function cofigToTextarea(){
+      const outTA = document.getElementById("configTA");
+      outTA.value=JSON.stringify(myConfig,null,"\t");
+      localStorage.setItem("WebSerialKonfig",JSON.stringify(myConfig));
+    }
+    
+    function storageToConfig(){
+      const outTA = document.getElementById("configTA");
+      let c=localStorage.getItem("WebSerialKonfig");
+      if(c)
+        try {
+          myConfig=JSON.parse(c);
+          outTA.value=JSON.stringify(myConfig,null,"\t");
+          configApply();
+        } catch (error) {
+          console.error(error);
+        }
+    }
+    
+    function configSave() {
+      try {
+        const configText = document.getElementById("configTA").value;
+        let j=JSON.parse(configText);
+        localStorage.setItem("WebSerialKonfig", JSON.stringify(j));
+        log("💾 Konfiguration gespeichert.");
+      } catch (err) {
+        log("❌ Fehler beim Speichern der Konfiguration: " + err.message);
+        alert("❌ Fehler beim Speichern der Konfiguration: " + err.message)
+      }
+    }
+    
+    function configApplyTextarea() {
+      try {
+        const configText = document.getElementById("configTA").value;
+        myConfig=JSON.parse(configText);
+        configApply();
+      } catch (err) {
+        log("❌ Fehler lesen der Konfiguration aus der Textarea: " + err.message);
+        alert("❌ Fehler lesen der Konfiguration aus der Textarea: " + err.message)
+      }
+    }
+    
+    function configApply() {
+      try {
+          let cb=document.getElementById("customButtons");
+          cb.innerHTML="";
+          myConfig.buttons.forEach(e=>{
+            addCustomButton(e.label,e.message,false);
+          });
+          let sliders=document.getElementById("sliders");
+          sliders.innerHTML="";
+          myConfig.sliders.forEach(e=>{
+            addSlider(e.name, e.min, e.max, e.delayMs, false);
+          });
+        } catch (error) {
+          console.error(error);
+        }
     }
   </script>
 </body>
